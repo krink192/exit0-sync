@@ -32,7 +32,12 @@ jobs:
           tags: exit0-sync:test
 
       - name: Start the container
-        run: docker run -d --name s -p 8080:8080 --read-only --tmpfs /tmp --cap-drop ALL exit0-sync:test
+        run: |
+          docker image ls
+          if ! docker run -d --name s -p 8080:8080 --read-only --tmpfs /tmp --cap-drop ALL exit0-sync:test 2> err.txt; then
+            echo "::error title=docker run::$(tr '\n' ' ' < err.txt) | images: $(docker image ls --format '{{.Repository}}:{{.Tag}}' | tr '\n' ' ')"
+            exit 1
+          fi
 
       - name: Wait until healthy
         run: |
