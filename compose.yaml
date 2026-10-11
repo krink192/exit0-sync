@@ -1,9 +1,10 @@
 # exit0-sync: the exit 0 web app plus progress sync, on http://<host>:8080
-#   docker compose up -d --build
+#   docker compose up -d
 #   docker compose exec exit0-sync exit0-sync user add jacob
+# From a clone, to run your own build instead of the published image:
+#   docker build -t ghcr.io/krink192/exit0-sync:latest . && docker compose up -d
 services:
   exit0-sync:
-    build: .
     image: ghcr.io/krink192/exit0-sync:latest
     container_name: exit0-sync
     ports:

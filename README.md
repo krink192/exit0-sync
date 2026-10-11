@@ -15,10 +15,13 @@ itself, so one address gives you both.
 ## Quick start (Docker)
 
 ```bash
-git clone https://github.com/krink192/exit0-sync && cd exit0-sync
-docker compose up -d --build
+mkdir exit0-sync && cd exit0-sync
+curl -fsSLO https://raw.githubusercontent.com/krink192/exit0-sync/main/compose.yaml
+docker compose up -d
 docker compose exec exit0-sync exit0-sync user add jacob      # asks for a password (10+ characters)
 ```
+To build from source instead: `git clone https://github.com/krink192/exit0-sync && cd exit0-sync &&
+docker build -t ghcr.io/krink192/exit0-sync:latest . && docker compose up -d`.
 
 Open `http://<server>:8080`, go to **Settings → Sync** and sign in. The server address is filled in for you.
 
@@ -30,7 +33,7 @@ calling the server from an https page). Put it behind a reverse proxy or tunnel;
 1. **Make sure the web app image has sync.** The container copies the app from `ghcr.io/krink192/exit0:latest`,
    which is published when the app repo makes a release. If the app's Settings page has no **Sync** card, publish
    a new app release first (`gh release create vX.Y.Z --repo krink192/exit0-linux-essentials --generate-notes`), then
-   rebuild here with `docker compose build --pull`.
+   a new exit0-sync release so the published image picks it up.
 2. **Start it** on the Docker host (commands above). Check it: `curl -s http://localhost:8080/v1/health`.
 3. **Create your account:** `docker compose exec exit0-sync exit0-sync user add jacob`.
    Sign-up from the app stays off unless you set `EXIT0_SIGNUP=true`.
@@ -48,7 +51,7 @@ calling the server from an https page). Put it behind a reverse proxy or tunnel;
    (`/data/exit0-backup-YYYY-MM-DD.db`). Copy it off the host, for example to a NAS:
    `docker cp exit0-sync:/data/exit0-backup-$(date +%F).db /mnt/nas/backups/`. To restore, stop the container and
    replace `/data/exit0.db` with a backup.
-8. **Updates:** `git pull && docker compose up -d --build --pull always`.
+8. **Updates:** `docker compose pull && docker compose up -d`.
 
 ## Settings
 
