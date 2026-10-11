@@ -1,0 +1,14 @@
+{
+  "name": "exit0-sync",
+  "version": "0.1.0",
+  "description": "Self-hosted progress sync server for exit 0",
+  "license": "AGPL-3.0-or-later",
+  "private": true,
+  "bin": { "exit0-sync": "bin/exit0-sync.js" },
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning bin/exit0-sync.js serve",
+    "test": "node --disable-warning=ExperimentalWarning --test \"test/*.test.js\""
+  },
+  "repository": { "type": "git", "url": "https://github.com/krink192/exit0-sync" }
+}

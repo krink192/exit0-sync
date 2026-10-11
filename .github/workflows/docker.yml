@@ -1,0 +1,70 @@
+# Builds the container, checks that it serves the app and that sign-in and sync work,
+# then on a release publishes ghcr.io/krink192/exit0-sync for linux/amd64 and linux/arm64.
+name: Container image
+on:
+  push:
+    branches: [main]
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/exit0-sync
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build for testing
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: exit0-sync:test
+
+      - name: Run the container and check it
+        run: |
+          docker run -d --name s -p 8080:8080 --read-only --tmpfs /tmp --cap-drop ALL exit0-sync:test
+          for i in $(seq 1 30); do
+            [ "$(docker inspect -f '{{.State.Health.Status}}' s)" = healthy ] && break
+            sleep 1
+          done
+          docker inspect -f '{{.State.Health.Status}}' s | grep -qx healthy
+          curl -fsS http://127.0.0.1:8080/ | grep -qi "exit 0"
+          echo "ci-password-123" | docker exec -i s exit0-sync user add ci
+          TOKEN=$(curl -fsS -H 'Content-Type: application/json' \
+            -d '{"username":"ci","password":"ci-password-123","device":"CI"}' http://127.0.0.1:8080/v1/login | jq -r .token)
+          DEV=$(curl -fsS -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8080/v1/me | jq -r .device.id)
+          curl -fsS -X PUT -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+            -d '{"epoch":1,"base":0,"doc":{"v":3}}' "http://127.0.0.1:8080/v1/packs/le010/replicas/$DEV"
+          curl -fsS -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8080/v1/packs/le010 | jq -e '.replicas | length == 1'
+          docker exec s exit0-sync backup /data/ci-backup.db
+          docker logs s
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'release'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish (amd64 + arm64)
+        if: github.event_name == 'release'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.event.release.tag_name }}
