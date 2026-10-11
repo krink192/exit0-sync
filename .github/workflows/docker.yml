@@ -52,6 +52,7 @@ jobs:
         run: |
           set -x
           curl -fsS http://127.0.0.1:8080/ | grep -qi "exit 0"
+          curl -fsS http://127.0.0.1:8080/js/sync.js | grep -q createSync   # the bundled app must have sync
           echo "ci-password-123" | docker exec -i exit0sync exit0-sync user add ci
           TOKEN=$(curl -fsS -H 'Content-Type: application/json' \
             -d '{"username":"ci","password":"ci-password-123","device":"CI"}' http://127.0.0.1:8080/v1/login | jq -r .token)
