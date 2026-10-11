@@ -31,14 +31,20 @@ jobs:
           load: true
           tags: exit0-sync:test
 
-      - name: Run the container and check it
+      - name: Start the container
+        run: docker run -d --name s -p 8080:8080 --read-only --tmpfs /tmp --cap-drop ALL exit0-sync:test
+
+      - name: Wait until healthy
         run: |
-          docker run -d --name s -p 8080:8080 --read-only --tmpfs /tmp --cap-drop ALL exit0-sync:test
           for i in $(seq 1 30); do
-            [ "$(docker inspect -f '{{.State.Health.Status}}' s)" = healthy ] && break
+            [ "$(docker inspect -f '{{.State.Health.Status}}' s)" = healthy ] && exit 0
             sleep 1
           done
-          docker inspect -f '{{.State.Health.Status}}' s | grep -qx healthy
+          exit 1
+
+      - name: Serves the app; sign-in, sync and backup work
+        run: |
+          set -x
           curl -fsS http://127.0.0.1:8080/ | grep -qi "exit 0"
           echo "ci-password-123" | docker exec -i s exit0-sync user add ci
           TOKEN=$(curl -fsS -H 'Content-Type: application/json' \
@@ -48,7 +54,15 @@ jobs:
             -d '{"epoch":1,"base":0,"doc":{"v":3}}' "http://127.0.0.1:8080/v1/packs/le010/replicas/$DEV"
           curl -fsS -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8080/v1/packs/le010 | jq -e '.replicas | length == 1'
           docker exec s exit0-sync backup /data/ci-backup.db
-          docker logs s
+
+      - name: Show container state and logs (on failure)
+        if: failure()
+        run: |
+          docker ps -a
+          { docker inspect -f 'status={{.State.Status}} exit={{.State.ExitCode}} error={{.State.Error}} health={{if .State.Health}}{{.State.Health.Status}}{{end}}' s; docker logs s; } > diag.txt 2>&1 || true
+          cat diag.txt
+          # also as an annotation so it shows up in the run summary
+          echo "::error title=container diagnostics::$(sed -e 's/%/%25/g' diag.txt | tail -40 | sed -e ':a;N;$!ba;s/\n/%0A/g')"
 
       - name: Log in to GitHub Container Registry
         if: github.event_name == 'release'
