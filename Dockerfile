@@ -5,7 +5,8 @@
 ARG APP_IMAGE=ghcr.io/krink192/exit0:latest
 FROM ${APP_IMAGE} AS app
 
-FROM node:24-alpine
+# Pin patch so Brotli CVE-2026-111497 builds are not pulled via a floating major tag.
+FROM node:24.22.1-alpine
 LABEL org.opencontainers.image.title="exit0-sync" \
       org.opencontainers.image.description="Self-hosted progress sync for exit 0, with the web app bundled" \
       org.opencontainers.image.source="https://github.com/krink192/exit0-sync" \
